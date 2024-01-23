@@ -8,25 +8,48 @@ struct characteristics
 { // создали структуру с полями freqCount, Probability, cumulProb чтобы не делать три хеш-таблицы,
     // а обойтись одной с этой структурой в виде значения (получаемого по ключу)
     size_t freqCount;
-    double_t Probability;
-    double_t cumulativeProb;
     size_t cumulativefreq;
     characteristics(size_t freq = 0)
     {
         freqCount = freq;
-        Probability = 0;
-        cumulativeProb = 0;
         cumulativefreq = 0;
     }
-    characteristics(size_t freq, double_t prob, double_t cumulProb, size_t cumulfreq)
+    characteristics(size_t freq, size_t cumulfreq)
     {
         freqCount = freq;
-        Probability = prob;
-        cumulativeProb = cumulProb;
         cumulativefreq = cumulfreq;
     }
 };
-vector<bool> encode(string &text, size_t &size, map<char, characteristics> &statistics)
+unsigned char *VecToStr(unsigned char *vec, size_t bits) // преобразование вектора в строку вида 011010101
+{
+    if (vec)
+    {
+        size_t bytes = ((bits - 1) / 8) + 1;                                             // Количество байт
+        unsigned char *str = (unsigned char *)calloc(sizeof(unsigned char), (bits + 1)); // Выделение памяти для строки
+        if (str)
+        {                        // Если указатель не нулевой
+            size_t strIndex = 0; // Индекс для строки
+            for (size_t i = 0; i < bytes; i++)
+            {                                // Проход по ячейкам
+                unsigned char mask = 1 << 7; // Создаем маску, начиная с самого левого бита
+                for (int j = 0; j < 8 && i * 8 + j < bits; j++)
+                {
+                    if ((vec[i] & mask) != 0)
+                        str[strIndex] = '1';
+                    else
+                        str[strIndex] = '0';
+                    mask = mask >> 1;
+                    strIndex++;
+                }
+                mask = 1 << 7;
+            }
+            str[bits] = '\0'; // Добавляем завершающий символ нуля
+            return str;
+        }
+    }
+    return NULL;
+}
+vector<bool> encode(string &text, size_t &size, size_t &num_of_sym, map<char, characteristics> &statistics)
 {
     vector<bool> encoded;
     size_t temp = 0;
@@ -40,11 +63,11 @@ vector<bool> encode(string &text, size_t &size, map<char, characteristics> &stat
     cout << right << endl;
     size = 0;
     for (size_t i = 0; text[i]; i++)
-    {   
+    {
         temp = left;
-        left = left + (statistics[text[i]].cumulativeProb - statistics[text[i]].Probability) * (right - left);
+        left = left + (statistics[text[i]].cumulativefreq - statistics[text[i]].freqCount) * (right - left) / num_of_sym;
         cout << left << endl;
-        right = temp + statistics[text[i]].cumulativeProb * (right - temp) - 1;
+        right = temp + statistics[text[i]].cumulativefreq * (right - temp) / num_of_sym - 1;
         cout << right << endl;
         while (true)
         {
@@ -76,8 +99,8 @@ vector<bool> encode(string &text, size_t &size, map<char, characteristics> &stat
             right += right + 1;
             left += left;
         }
-    }                   // в функцию передаём size как аргумент просто чтобы получить из функции размер закодированного текста
-    bits_to_follow += 1;//Завершаем кодирование выводим биты определяющие четверть лежащую в текущем интервале
+    }                    // в функцию передаём size как аргумент просто чтобы получить из функции размер закодированного текста
+    bits_to_follow += 1; // Завершаем кодирование выводим биты определяющие четверть лежащую в текущем интервале
     size++;
     if (left < First_quarter)
     {
@@ -93,7 +116,7 @@ vector<bool> encode(string &text, size_t &size, map<char, characteristics> &stat
         for (; bits_to_follow > 0; bits_to_follow--)
             encoded.push_back(0);
     }
-    cout <<"encodedText: ";
+    cout << "encodedText: ";
     for (size_t i = 0; i < size; i++)
     {
         cout << encoded[i];
@@ -101,8 +124,8 @@ vector<bool> encode(string &text, size_t &size, map<char, characteristics> &stat
     cout << endl;
     return encoded;
 }
-string decode(vector<bool> &encoded, size_t &encodedSize, map<char, characteristics> &statistics, size_t &num_of_sym)
-{ // заменяем на книжный вариант4  
+string decode(vector<bool> &encoded, size_t &encodedSize, size_t &num_of_sym, map<char, characteristics> &statistics)
+{ // заменяем на книжный вариант4
     cout << "encodedSize: " << encodedSize;
     cout << "num_of_sym:  " << num_of_sym;
     string decodedText;
@@ -119,19 +142,19 @@ string decode(vector<bool> &encoded, size_t &encodedSize, map<char, characterist
     {
         cout << "ERROR OF ENCODING! \n";
     }
-    unsigned short value = 0;//value = 4072; 12345 // value = 6912;
+    unsigned short value = 0; // value = 4072; 12345 // value = 6912;
     size_t i = 0;
-    for (; i < 16 && i < encodedSize; i++)//value = 4072; 12345
+    for (; i < j && i < encodedSize; i++) // value = 4072; 12345
     {
         value = value * 2 + encoded[i];
     }
-    if (i < 16)
-        value = value << (16-i);
-    cout << "value: " <<value << endl;
-    
-    for (size_t i = 0 ; i < num_of_sym; i++)
+    if (i < j)
+        value = value << (j - i);
+    cout << "value: " << value << endl;
+
+    for (size_t i = 0; i < num_of_sym; i++)
     {
-        freq = ((value + 1 - left) * num_of_sym - 1) / (right - left + 1); 
+        freq = ((value + 1 - left) * num_of_sym - 1) / (right - left + 1);
         cout << freq << " freq\n";
         char symbol;
         for (auto it : statistics) // ищем символ
@@ -146,9 +169,9 @@ string decode(vector<bool> &encoded, size_t &encodedSize, map<char, characterist
         decodedText += symbol; // нашли символ
 
         temp = left;
-        left = left + (statistics[symbol].cumulativeProb - statistics[symbol].Probability) * (right - left);
+        left = left + (statistics[symbol].cumulativefreq - statistics[symbol].freqCount) * (right - left) / num_of_sym;
         cout << left << endl;
-        right = temp + statistics[symbol].cumulativeProb * (right - temp) - 1;
+        right = temp + statistics[symbol].cumulativefreq * (right - temp) / num_of_sym - 1;
         cout << right << endl;
         while (true)
         {
@@ -178,13 +201,12 @@ string decode(vector<bool> &encoded, size_t &encodedSize, map<char, characterist
                 value += encoded[j];
                 j++;
             }
-                 
         }
     }
     return decodedText;
 }
 int main()
-{   
+{
     string text;
     cout << "text: ";
     cin >> text;
@@ -205,17 +227,13 @@ int main()
     {
         temp = statistics[i.first].freqCount;
         tempSize += temp;
-        // теряем поле freqCount если будем заполнять его по конструктору с тремя переменными поэтому сохраним значение поля в переменной temp
-        prob = double_t(i.second.freqCount) / size;
-        sumrange += prob;
-        statistics[i.first] = characteristics(temp, prob, sumrange, tempSize);
-        cout << i.first << ", " << statistics[i.first].freqCount << ", " << statistics[i.first].Probability << ", " << statistics[i.first].cumulativeProb << ", "
-             << statistics[i.first].cumulativefreq << endl;
+        statistics[i.first] = characteristics(temp, tempSize);
+        cout << i.first << ", " << statistics[i.first].freqCount << ", " << statistics[i.first].cumulativefreq << endl;
     }
     // size_t 2^32-1
     size_t num_of_sym = size;
-    vector<bool> code = encode(text, size, statistics);
-    string decodedText = decode(code, size, statistics, num_of_sym);
+    vector<bool> encodedText = encode(text, size, num_of_sym, statistics);
+    string decodedText = decode(encodedText, size, num_of_sym, statistics);
     cout << decodedText;
     return 0;
 }
