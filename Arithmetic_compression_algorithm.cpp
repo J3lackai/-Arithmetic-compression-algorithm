@@ -20,38 +20,42 @@ struct characteristics
         cumulativefreq = cumulfreq;
     }
 };
-unsigned char *VecToStr(unsigned char *vec, size_t bits) // преобразование вектора в строку вида 011010101
+vector<unsigned char> VecToStr(vector<unsigned char> vec, size_t bits) // преобразование вектора в строку вида 011010101
 {
-    if (vec)
+
+    size_t bytes = ((bits - 1) / 8) + 1; // Количество байт
+    vector<unsigned char> str;
+    for (size_t i = 0; i < bits + 1; i++)
     {
-        size_t bytes = ((bits - 1) / 8) + 1;                                             // Количество байт
-        unsigned char *str = (unsigned char *)calloc(sizeof(unsigned char), (bits + 1)); // Выделение памяти для строки
-        if (str)
-        {                        // Если указатель не нулевой
-            size_t strIndex = 0; // Индекс для строки
-            for (size_t i = 0; i < bytes; i++)
-            {                                // Проход по ячейкам
-                unsigned char mask = 1 << 7; // Создаем маску, начиная с самого левого бита
-                for (int j = 0; j < 8 && i * 8 + j < bits; j++)
-                {
-                    if ((vec[i] & mask) != 0)
-                        str[strIndex] = '1';
-                    else
-                        str[strIndex] = '0';
-                    mask = mask >> 1;
-                    strIndex++;
-                }
-                mask = 1 << 7;
-            }
-            str[bits] = '\0'; // Добавляем завершающий символ нуля
-            return str;
+        str.push_back(0);
+    }                    // Выделение памяти для строки
+    size_t strIndex = 0; // Индекс для строки
+    for (size_t i = 0; i < bytes; i++)
+    {                                // Проход по ячейкам
+        unsigned char mask = 1 << 7; // Создаем маску, начиная с самого левого бита
+        for (int j = 0; j < 8 && i * 8 + j < bits; j++)
+        {
+            if ((vec[i] & mask) != 0)
+                str[strIndex] = '1';
+            else
+                str[strIndex] = '0';
+            mask = mask >> 1;
+            strIndex++;
         }
+        mask = 1 << 7;
     }
-    return NULL;
+    str[bits] = '\0'; // Добавляем завершающий символ нуля
+    return str;
 }
-vector<bool> encode(string &text, size_t &size, size_t &num_of_sym, map<char, characteristics> &statistics)
+vector<unsigned char> encode(string &text, size_t &size, size_t &num_of_sym, map<char, characteristics> &statistics)
 {
-    vector<bool> encoded;
+    vector<unsigned char> encodedText;
+    vector<unsigned char> mask;
+    // unsigned char byte;
+    for (size_t i = 0; i < 8; i++)
+    {
+        mask.push_back(1 << (7 - i));
+    }
     size_t temp = 0;
     size_t left = 0;
     size_t bits_to_follow = 0;
@@ -73,24 +77,35 @@ vector<bool> encode(string &text, size_t &size, size_t &num_of_sym, map<char, ch
         {
             if (right < Second_quarter)
             {
-                encoded.push_back(0);
                 size++;
+                if (size % 8 == 1)
+                    encodedText.push_back(0);
                 for (; bits_to_follow > 0; bits_to_follow--)
-                    encoded.push_back(1);
+                {
+                    size++;
+                    if (size % 8 == 1)
+                        encodedText.push_back(0);
+                    encodedText[(size - 1) / 8] = encodedText[(size - 1) / 8] | mask[(size - 1) % 8];
+                }
             }
             else if (left >= Second_quarter)
             {
-                encoded.push_back(1);
                 size++;
+                if (size % 8 == 1)
+                    encodedText.push_back(0);
+                encodedText[(size - 1) / 8] = encodedText[(size - 1) / 8] | mask[(size - 1) % 8];
                 for (; bits_to_follow > 0; bits_to_follow--)
-                    encoded.push_back(0);
+                {
+                    size++;
+                    if (size % 8 == 1)
+                        encodedText.push_back(0);
+                }
                 right -= Second_quarter;
                 left -= Second_quarter;
             }
             else if ((left >= First_quarter) && (right < Third_quarter))
             {
                 bits_to_follow++; // добавляем биты условно
-                size++;
                 left -= First_quarter;
                 right -= First_quarter;
             }
@@ -101,34 +116,54 @@ vector<bool> encode(string &text, size_t &size, size_t &num_of_sym, map<char, ch
         }
     }                    // в функцию передаём size как аргумент просто чтобы получить из функции размер закодированного текста
     bits_to_follow += 1; // Завершаем кодирование выводим биты определяющие четверть лежащую в текущем интервале
-    size++;
     if (left < First_quarter)
     {
-        encoded.push_back(0);
         size++;
+        if (size % 8 == 1)
+            encodedText.push_back(0);
         for (; bits_to_follow > 0; bits_to_follow--)
-            encoded.push_back(1);
+        {
+            size++;
+            if (size % 8 == 1)
+                encodedText.push_back(0);
+            encodedText[(size - 1) / 8] = encodedText[(size - 1) / 8] | mask[(size - 1) % 8];
+        }
     }
     else
     {
-        encoded.push_back(1);
         size++;
+        if (size % 8 == 1)
+            encodedText.push_back(0);
+        encodedText[(size - 1) / 8] = encodedText[(size - 1) / 8] | mask[(size - 1) % 8];
         for (; bits_to_follow > 0; bits_to_follow--)
-            encoded.push_back(0);
+        {
+            size++;
+            if (size % 8 == 1)
+                encodedText.push_back(0);
+        }
     }
     cout << "encodedText: ";
-    for (size_t i = 0; i < size; i++)
-    {
-        cout << encoded[i];
-    }
+    cout << VecToStr(encodedText, size)[0];
     cout << endl;
-    return encoded;
+    return encodedText;
 }
-string decode(vector<bool> &encoded, size_t &encodedSize, size_t &num_of_sym, map<char, characteristics> &statistics)
+string decode(vector<unsigned char>& encodedText, size_t &encodedSize, size_t &num_of_sym, map<char, characteristics> &statistics)
 { // заменяем на книжный вариант4
+    string decodedText = "";
+    if (encodedSize == 0)
+    {
+        cout << "ERROR OF ENCODING! \n";
+        return decodedText;
+    }
+    vector<unsigned char> mask;
+    // unsigned char byte;
+    for (size_t i = 0; i < 8; i++)
+    {
+        mask.push_back(1 << (7 - i));
+    }
     cout << "encodedSize: " << encodedSize;
     cout << "num_of_sym:  " << num_of_sym;
-    string decodedText;
+
     size_t left = 0;
     size_t right = 65535;
     size_t temp = 0;
@@ -138,18 +173,12 @@ string decode(vector<bool> &encoded, size_t &encodedSize, size_t &num_of_sym, ma
     size_t freq = 0;
     size_t j = 16;
     cout << endl;
-    if (encodedSize == 0)
-    {
-        cout << "ERROR OF ENCODING! \n";
-    }
-    unsigned short value = 0; // value = 4072; 12345 // value = 6912;
-    size_t i = 0;
-    for (; i < j && i < encodedSize; i++) // value = 4072; 12345
-    {
-        value = value * 2 + encoded[i];
-    }
-    if (i < j)
-        value = value << (j - i);
+
+    size_t value = 0;            // value = 4072; 12345 // value = 6912;
+    value = encodedText[0] << 8; // Сдвигаем старший байт на 8 бит влево
+    if (encodedSize > 8)
+        value |= encodedText[1]; // Записываем младший байт
+
     cout << "value: " << value << endl;
 
     for (size_t i = 0; i < num_of_sym; i++)
@@ -162,7 +191,6 @@ string decode(vector<bool> &encoded, size_t &encodedSize, size_t &num_of_sym, ma
             if (it.second.cumulativefreq > freq)
             {
                 symbol = it.first;
-                // right = left + (it.second.cumulativeProb * (right - left + 1)) - 1;
                 break;
             }
         }
@@ -198,7 +226,8 @@ string decode(vector<bool> &encoded, size_t &encodedSize, size_t &num_of_sym, ma
             value += value;
             if (j < encodedSize)
             {
-                value += encoded[j];
+                if ((encodedText[j / 8] | mask[j % 8]) == encodedText[j / 8])
+                    value |= 1;
                 j++;
             }
         }
@@ -213,10 +242,8 @@ int main()
     // Создаём необходимые структуры
     map<char, characteristics> statistics; // size_t 2^32-1
     size_t size = 0;
-    double_t sumrange = 0;
     size_t temp = 0;
     size_t tempSize = 0;
-    double_t prob = 0;
     // Подсчет частоты встречаемости символов в тексте
     for (const char c : text)
     {
@@ -232,7 +259,7 @@ int main()
     }
     // size_t 2^32-1
     size_t num_of_sym = size;
-    vector<bool> encodedText = encode(text, size, num_of_sym, statistics);
+    vector <unsigned char> encodedText = encode(text, size, num_of_sym, statistics);
     string decodedText = decode(encodedText, size, num_of_sym, statistics);
     cout << decodedText;
     return 0;
