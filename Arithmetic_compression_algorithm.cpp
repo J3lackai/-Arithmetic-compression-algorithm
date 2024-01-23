@@ -70,9 +70,7 @@ vector<unsigned char> encode(string &text, size_t &size, size_t &num_of_sym, map
     {
         temp = left;
         left = left + (statistics[text[i]].cumulativefreq - statistics[text[i]].freqCount) * (right - left) / num_of_sym;
-        cout << left << endl;
         right = temp + statistics[text[i]].cumulativefreq * (right - temp) / num_of_sym - 1;
-        cout << right << endl;
         while (true)
         {
             if (right < Second_quarter)
@@ -147,7 +145,7 @@ vector<unsigned char> encode(string &text, size_t &size, size_t &num_of_sym, map
     cout << endl;
     return encodedText;
 }
-string decode(vector<unsigned char>& encodedText, size_t &encodedSize, size_t &num_of_sym, map<char, characteristics> &statistics)
+string decode(vector<unsigned char> &encodedText, size_t &encodedSize, size_t &num_of_sym, map<char, characteristics> &statistics)
 { // заменяем на книжный вариант4
     string decodedText = "";
     if (encodedSize == 0)
@@ -184,7 +182,6 @@ string decode(vector<unsigned char>& encodedText, size_t &encodedSize, size_t &n
     for (size_t i = 0; i < num_of_sym; i++)
     {
         freq = ((value + 1 - left) * num_of_sym - 1) / (right - left + 1);
-        cout << freq << " freq\n";
         char symbol;
         for (auto it : statistics) // ищем символ
         {
@@ -198,9 +195,7 @@ string decode(vector<unsigned char>& encodedText, size_t &encodedSize, size_t &n
 
         temp = left;
         left = left + (statistics[symbol].cumulativefreq - statistics[symbol].freqCount) * (right - left) / num_of_sym;
-        cout << left << endl;
         right = temp + statistics[symbol].cumulativefreq * (right - temp) / num_of_sym - 1;
-        cout << right << endl;
         while (true)
         {
             if (right < Second_quarter)
@@ -236,31 +231,121 @@ string decode(vector<unsigned char>& encodedText, size_t &encodedSize, size_t &n
 }
 int main()
 {
-    string text;
-    cout << "text: ";
-    cin >> text;
-    // Создаём необходимые структуры
-    map<char, characteristics> statistics; // size_t 2^32-1
-    size_t size = 0;
-    size_t temp = 0;
-    size_t tempSize = 0;
-    // Подсчет частоты встречаемости символов в тексте
-    for (const char c : text)
+    string line;
+    bool flag = 0;
+    cout << "Choose Decode or Encode (Enter 0 or 1): ";
+    cin >> flag;
+    if (flag)
     {
-        statistics[c].freqCount++;
-        size++;
+        ifstream in("text.txt");
+        if (!in.is_open())
+        {
+            cout << "ERROR: file 'text.txt' not found create it \n";
+            return 1;
+        }
+        ofstream write("encodedtext.bin", ios::binary | ios::out); // Работаем с бинарным файлом работа с которым быстрее, помимо этого
+        // если используем файл .txt мы не можем передать все байты unsigned char, некоторые байты невидимы!
+        string text;
+        while (getline(in, line))
+            text += line;
+        if (text.length() == 0)
+        {
+            cout << "Error: text.txt is empty";
+            exit(1);
+        }
+        // Создаём необходимые структуры
+        map<char, characteristics> statistics; // size_t 2^32-1
+        size_t size = 0;
+        size_t temp = 0;
+        size_t tempSize = 0;
+        // Подсчет частоты встречаемости символов в тексте
+        for (const char c : text)
+        {
+            statistics[c].freqCount++;
+            size++;
+        }
+        for (auto i : statistics)
+        {
+            temp = statistics[i.first].freqCount;
+            tempSize += temp;
+            statistics[i.first] = characteristics(temp, tempSize);
+            cout << i.first << ", " << statistics[i.first].freqCount << ", " << statistics[i.first].cumulativefreq << endl;
+        }
+        // size_t 2^32-1
+        size_t num_of_sym = size;
+        vector<unsigned char> encodedText = encode(text, size, num_of_sym, statistics);
+        write << size << ' ' << num_of_sym << "\n";
+        cout << "size: " << size;
+        cout << "num_of_sym: " << num_of_sym;
+        for (size_t i = 0; i < (size / 8); i++)
+            write << encodedText[i];
+        write << "\n\n";
+        for (auto &pair : statistics)
+        {
+            write << pair.first << pair.second.freqCount << ' ';
+        }
     }
-    for (auto i : statistics)
+    else
     {
-        temp = statistics[i.first].freqCount;
-        tempSize += temp;
-        statistics[i.first] = characteristics(temp, tempSize);
-        cout << i.first << ", " << statistics[i.first].freqCount << ", " << statistics[i.first].cumulativefreq << endl;
+        ifstream in("encodedtext.bin", ios::binary | ios::in);
+        ofstream write("text.txt");
+        if (!in.is_open())
+        {
+            cout << "ERROR: file 'encodedtext.txt' not found create it \n";
+            return 1;
+        }
+        vector<unsigned char> encodedText;
+        map<char, characteristics> statistics;
+        size_t size = 0;
+        size_t num_of_sym = 0;
+        size_t sumfreq = 0;
+        bool flag = false;
+        char sym;
+        size_t freq = 0;
+        bool backspace = false;
+        getline(in, line);
+        size_t k = 0;
+        for (; line[k] != ' ' && line[k]; k++)
+        {
+            size *= 10;
+            size += line[k] - 48;
+        }
+        for (size_t n = k + 1; line[n] != ' ' && line[n]; n++)
+        {
+            num_of_sym *= 10;
+            num_of_sym += line[n] - 48;
+        }
+        cout << "size: " << size;
+        cout << "num_of_sym: " << num_of_sym;
+
+        while (getline(in, line))
+        {
+            if (line.length() == 0) // отступ между деревом и кодом
+                break;
+            if (flag) // передали байт == \n
+                encodedText.push_back(10);
+            for (size_t i = 0; i < line.length(); i++)
+                encodedText.push_back(line[i]);
+            flag = true;
+        }
+        getline(in, line);
+        for (size_t i = 0; line[i];)
+        {
+            sym = line[i];
+            freq = 0;
+            size_t j = i + 1;
+            for (; line[j] != ' ' && line[j]; j++)
+            {
+                freq *= 10;
+                freq += line[j] - 48;
+            }
+            i = j + 1;
+            sumfreq += freq;
+            statistics[sym] = characteristics(freq, sumfreq);
+        }
+        string decodedText = decode(encodedText, size, num_of_sym, statistics);
+        write << decodedText;
+        cout << decodedText;
+        return 0;
     }
-    // size_t 2^32-1
-    size_t num_of_sym = size;
-    vector <unsigned char> encodedText = encode(text, size, num_of_sym, statistics);
-    string decodedText = decode(encodedText, size, num_of_sym, statistics);
-    cout << decodedText;
-    return 0;
 }
