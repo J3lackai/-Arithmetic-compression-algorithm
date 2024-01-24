@@ -5,8 +5,7 @@ using namespace std;
 #include <fstream>
 #include <random>
 struct characteristics
-{ // создали структуру с полями freqCount, Probability, cumulProb чтобы не делать три хеш-таблицы,
-    // а обойтись одной с этой структурой в виде значения (получаемого по ключу)
+{ // создали структуру с полями freqCount, cumulfreq чтобы обойтись одной этой структурой получаемой по ключу
     size_t freqCount;
     size_t cumulativefreq;
     characteristics(size_t freq = 0)
@@ -63,8 +62,6 @@ vector<unsigned char> encode(string &text, size_t &size, size_t &num_of_sym, map
     size_t First_quarter = (right / 4) + 1;
     size_t Second_quarter = First_quarter * 2;
     size_t Third_quarter = First_quarter * 3;
-    cout << left << endl;
-    cout << right << endl;
     size = 0;
     for (size_t i = 0; text[i]; i++)
     {
@@ -141,7 +138,11 @@ vector<unsigned char> encode(string &text, size_t &size, size_t &num_of_sym, map
         }
     }
     cout << "encodedText: ";
-    cout << VecToStr(encodedText, size)[0];
+    vector <unsigned char> vec = VecToStr(encodedText, size);
+    for (size_t i = 0; i < size; i++)
+    {
+        cout << vec[i];
+    }
     cout << endl;
     return encodedText;
 }
@@ -153,15 +154,18 @@ string decode(vector<unsigned char> &encodedText, size_t &encodedSize, size_t &n
         cout << "ERROR OF ENCODING! \n";
         return decodedText;
     }
+    cout << "encodedText: ";
+ /*   vector <unsigned char> vec = VecToStr(encodedText, encodedSize);
+    for (size_t i = 0; i < encodedSize; i++)
+    {
+        cout << vec[i];
+    }*/
     vector<unsigned char> mask;
     // unsigned char byte;
     for (size_t i = 0; i < 8; i++)
     {
         mask.push_back(1 << (7 - i));
     }
-    cout << "encodedSize: " << encodedSize;
-    cout << "num_of_sym:  " << num_of_sym;
-
     size_t left = 0;
     size_t right = 65535;
     size_t temp = 0;
@@ -277,7 +281,7 @@ int main()
         write << size << ' ' << num_of_sym << "\n";
         cout << "size: " << size;
         cout << "num_of_sym: " << num_of_sym;
-        for (size_t i = 0; i < (size / 8); i++)
+        for (size_t i = 0; i < ((size-1)/8+1); i++)
             write << encodedText[i];
         write << "\n\n";
         for (auto &pair : statistics)
@@ -310,7 +314,7 @@ int main()
             size *= 10;
             size += line[k] - 48;
         }
-        for (size_t n = k + 1; line[n] != ' ' && line[n]; n++)
+        for (size_t n = k + 1; line[n]; n++)
         {
             num_of_sym *= 10;
             num_of_sym += line[n] - 48;
@@ -342,6 +346,7 @@ int main()
             i = j + 1;
             sumfreq += freq;
             statistics[sym] = characteristics(freq, sumfreq);
+            cout <<"sym: " <<sym << " freq: " <<freq << endl;
         }
         string decodedText = decode(encodedText, size, num_of_sym, statistics);
         write << decodedText;
