@@ -51,7 +51,7 @@ vector<unsigned char> encode(string &text, size_t &size, size_t &num_of_sym, map
     vector<unsigned char> encodedText;
     vector<unsigned char> mask;
     // unsigned char byte;
-    for (size_t i = 0; i < 8; i++)
+    for (size_t i = 0; i < 8; i++)//создаём маску для записи побитово в vector 
     {
         mask.push_back(1 << (7 - i));
     }
@@ -62,7 +62,7 @@ vector<unsigned char> encode(string &text, size_t &size, size_t &num_of_sym, map
     size_t First_quarter = (right / 4) + 1;
     size_t Second_quarter = First_quarter * 2;
     size_t Third_quarter = First_quarter * 3;
-    size = 0;
+    size = 0;// в функцию передаём size как аргумент  чтобы получить из функции размер закодированного текста
     for (size_t i = 0; text[i]; i++)
     {
         temp = left;
@@ -73,7 +73,7 @@ vector<unsigned char> encode(string &text, size_t &size, size_t &num_of_sym, map
             if (right < Second_quarter)
             {
                 size++;
-                if (size % 8 == 1)
+                if (size % 8 == 1)// увеличили размер и проверили не начался ли новый байт
                     encodedText.push_back(0);
                 for (; bits_to_follow > 0; bits_to_follow--)
                 {
@@ -109,7 +109,7 @@ vector<unsigned char> encode(string &text, size_t &size, size_t &num_of_sym, map
             right += right + 1;
             left += left;
         }
-    }                    // в функцию передаём size как аргумент просто чтобы получить из функции размер закодированного текста
+    }                    
     bits_to_follow += 1; // Завершаем кодирование выводим биты определяющие четверть лежащую в текущем интервале
     if (left < First_quarter)
     {
@@ -147,7 +147,7 @@ vector<unsigned char> encode(string &text, size_t &size, size_t &num_of_sym, map
     return encodedText;
 }
 string decode(vector<unsigned char> &encodedText, size_t &encodedSize, size_t &num_of_sym, map<char, characteristics> &statistics)
-{ // заменяем на книжный вариант4
+{ 
     string decodedText = "";
     if (encodedSize == 0)
     {
@@ -176,7 +176,7 @@ string decode(vector<unsigned char> &encodedText, size_t &encodedSize, size_t &n
     size_t j = 16;
     cout << endl;
 
-    size_t value = 0;            // value = 4072; 12345 // value = 6912;
+    size_t value = 0;           
     value = encodedText[0] << 8; // Сдвигаем старший байт на 8 бит влево
     if (encodedSize > 8)
         value |= encodedText[1]; // Записываем младший байт
@@ -195,7 +195,7 @@ string decode(vector<unsigned char> &encodedText, size_t &encodedSize, size_t &n
                 break;
             }
         }
-        decodedText += symbol; // нашли символ
+        decodedText += symbol; // нашли символ, добавили к раскодированному тексту 
 
         temp = left;
         left = left + (statistics[symbol].cumulativefreq - statistics[symbol].freqCount) * (right - left) / num_of_sym;
@@ -247,8 +247,7 @@ int main()
             cout << "ERROR: file 'text.txt' not found create it \n";
             return 1;
         }
-        ofstream write("encodedtext.bin", ios::binary | ios::out); // Работаем с бинарным файлом работа с которым быстрее, помимо этого
-        // если используем файл .txt мы не можем передать все байты unsigned char, некоторые байты невидимы!
+        ofstream write("encodedtext.bin", ios::binary | ios::out); // Работаем с бинарным файлом работа с которым быстрее
         string text;
         while (getline(in, line))
             text += line;
@@ -258,15 +257,16 @@ int main()
             exit(1);
         }
         // Создаём необходимые структуры
-        map<char, characteristics> statistics; // size_t 2^32-1
+        map<char, characteristics> statistics; 
         size_t size = 0;
         size_t temp = 0;
         size_t tempSize = 0;
+        size_t num_of_sym = 0;
         // Подсчет частоты встречаемости символов в тексте
         for (const char c : text)
         {
             statistics[c].freqCount++;
-            size++;
+            num_of_sym++;
         }
         for (auto i : statistics)
         {
@@ -275,13 +275,11 @@ int main()
             statistics[i.first] = characteristics(temp, tempSize);
             cout << i.first << ", " << statistics[i.first].freqCount << ", " << statistics[i.first].cumulativefreq << endl;
         }
-        // size_t 2^32-1
-        size_t num_of_sym = size;
         vector<unsigned char> encodedText = encode(text, size, num_of_sym, statistics);
         write << size << ' ' << num_of_sym << "\n";
         cout << "size: " << size;
         cout << "num_of_sym: " << num_of_sym;
-        for (size_t i = 0; i < ((size-1)/8+1); i++)
+        for (size_t i = 0; i < ((size-1)/8+1); i++)// записываем в файл закодированный текст вместе с таблицей частот
             write << encodedText[i];
         write << "\n\n";
         for (auto &pair : statistics)
@@ -309,7 +307,7 @@ int main()
         bool backspace = false;
         getline(in, line);
         size_t k = 0;
-        for (; line[k] != ' ' && line[k]; k++)
+        for (; line[k] != ' ' && line[k]; k++)// побитово считываем длину кода и количество символов в тексте
         {
             size *= 10;
             size += line[k] - 48;
