@@ -4,6 +4,7 @@ using namespace std;
 #include <vector>
 #include <fstream>
 #include <random>
+#include <string>
 struct characteristics
 { // создали структуру с полями freqCount, cumulfreq чтобы обойтись одной этой структурой получаемой по ключу
     size_t freqCount;
@@ -51,7 +52,7 @@ vector<unsigned char> encode(string &text, size_t &size, size_t &num_of_sym, map
     vector<unsigned char> encodedText;
     vector<unsigned char> mask;
     // unsigned char byte;
-    for (size_t i = 0; i < 8; i++)//создаём маску для записи побитово в vector 
+    for (size_t i = 0; i < 8; i++) // создаём маску для записи побитово в vector
     {
         mask.push_back(1 << (7 - i));
     }
@@ -62,7 +63,7 @@ vector<unsigned char> encode(string &text, size_t &size, size_t &num_of_sym, map
     size_t First_quarter = (right / 4) + 1;
     size_t Second_quarter = First_quarter * 2;
     size_t Third_quarter = First_quarter * 3;
-    size = 0;// в функцию передаём size как аргумент  чтобы получить из функции размер закодированного текста
+    size = 0; // в функцию передаём size как аргумент  чтобы получить из функции размер закодированного текста
     for (size_t i = 0; text[i]; i++)
     {
         temp = left;
@@ -73,7 +74,7 @@ vector<unsigned char> encode(string &text, size_t &size, size_t &num_of_sym, map
             if (right < Second_quarter)
             {
                 size++;
-                if (size % 8 == 1)// увеличили размер и проверили не начался ли новый байт
+                if (size % 8 == 1) // увеличили размер и проверили не начался ли новый байт
                     encodedText.push_back(0);
                 for (; bits_to_follow > 0; bits_to_follow--)
                 {
@@ -109,7 +110,7 @@ vector<unsigned char> encode(string &text, size_t &size, size_t &num_of_sym, map
             right += right + 1;
             left += left;
         }
-    }                    
+    }
     bits_to_follow += 1; // Завершаем кодирование выводим биты определяющие четверть лежащую в текущем интервале
     if (left < First_quarter)
     {
@@ -138,7 +139,7 @@ vector<unsigned char> encode(string &text, size_t &size, size_t &num_of_sym, map
         }
     }
     cout << "encodedText: ";
-    vector <unsigned char> vec = VecToStr(encodedText, size);
+    vector<unsigned char> vec = VecToStr(encodedText, size);
     for (size_t i = 0; i < size; i++)
     {
         cout << vec[i];
@@ -147,7 +148,7 @@ vector<unsigned char> encode(string &text, size_t &size, size_t &num_of_sym, map
     return encodedText;
 }
 string decode(vector<unsigned char> &encodedText, size_t &encodedSize, size_t &num_of_sym, map<char, characteristics> &statistics)
-{ 
+{
     string decodedText = "";
     if (encodedSize == 0)
     {
@@ -155,11 +156,11 @@ string decode(vector<unsigned char> &encodedText, size_t &encodedSize, size_t &n
         return decodedText;
     }
     cout << "encodedText: ";
- /*   vector <unsigned char> vec = VecToStr(encodedText, encodedSize);
-    for (size_t i = 0; i < encodedSize; i++)
-    {
-        cout << vec[i];
-    }*/
+    /*   vector <unsigned char> vec = VecToStr(encodedText, encodedSize);
+       for (size_t i = 0; i < encodedSize; i++)
+       {
+           cout << vec[i];
+       }*/
     vector<unsigned char> mask;
     // unsigned char byte;
     for (size_t i = 0; i < 8; i++)
@@ -176,7 +177,7 @@ string decode(vector<unsigned char> &encodedText, size_t &encodedSize, size_t &n
     size_t j = 16;
     cout << endl;
 
-    size_t value = 0;           
+    size_t value = 0;
     value = encodedText[0] << 8; // Сдвигаем старший байт на 8 бит влево
     if (encodedSize > 8)
         value |= encodedText[1]; // Записываем младший байт
@@ -186,7 +187,7 @@ string decode(vector<unsigned char> &encodedText, size_t &encodedSize, size_t &n
     for (size_t i = 0; i < num_of_sym; i++)
     {
         freq = ((value + 1 - left) * num_of_sym - 1) / (right - left + 1);
-        char symbol;
+        char symbol = ' ';
         for (auto it : statistics) // ищем символ
         {
             if (it.second.cumulativefreq > freq)
@@ -195,7 +196,7 @@ string decode(vector<unsigned char> &encodedText, size_t &encodedSize, size_t &n
                 break;
             }
         }
-        decodedText += symbol; // нашли символ, добавили к раскодированному тексту 
+        decodedText += symbol; // нашли символ, добавили к раскодированному тексту
 
         temp = left;
         left = left + (statistics[symbol].cumulativefreq - statistics[symbol].freqCount) * (right - left) / num_of_sym;
@@ -257,7 +258,7 @@ int main()
             exit(1);
         }
         // Создаём необходимые структуры
-        map<char, characteristics> statistics; 
+        map<char, characteristics> statistics;
         size_t size = 0;
         size_t temp = 0;
         size_t tempSize = 0;
@@ -279,7 +280,7 @@ int main()
         write << size << ' ' << num_of_sym << "\n";
         cout << "size: " << size;
         cout << "num_of_sym: " << num_of_sym;
-        for (size_t i = 0; i < ((size-1)/8+1); i++)// записываем в файл закодированный текст вместе с таблицей частот
+        for (size_t i = 0; i < ((size - 1) / 8 + 1); i++) // записываем в файл закодированный текст вместе с таблицей частот
             write << encodedText[i];
         write << "\n\n";
         for (auto &pair : statistics)
@@ -307,7 +308,7 @@ int main()
         bool backspace = false;
         getline(in, line);
         size_t k = 0;
-        for (; line[k] != ' ' && line[k]; k++)// побитово считываем длину кода и количество символов в тексте
+        for (; line[k] != ' ' && line[k]; k++) // побитово считываем длину кода и количество символов в тексте
         {
             size *= 10;
             size += line[k] - 48;
@@ -344,7 +345,7 @@ int main()
             i = j + 1;
             sumfreq += freq;
             statistics[sym] = characteristics(freq, sumfreq);
-            cout <<"sym: " <<sym << " freq: " <<freq << endl;
+            cout << "sym: " << sym << " freq: " << freq << endl;
         }
         string decodedText = decode(encodedText, size, num_of_sym, statistics);
         write << decodedText;
