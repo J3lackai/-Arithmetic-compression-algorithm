@@ -303,7 +303,7 @@ int main()
         size_t num_of_sym = 0;
         size_t sumfreq = 0;
         bool flag = false;
-        char sym;
+        char sym = ' ';
         size_t freq = 0;
         bool backspace = false;
         getline(in, line);
